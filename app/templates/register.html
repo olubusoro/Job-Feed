@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Create Account — JobFeed{% endblock %}
+
+{% block content %}
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;">
+  <div style="width:100%;max-width:420px;">
+
+    <div style="text-align:center;margin-bottom:2rem;">
+      <h1 style="font-size:2rem;font-weight:700;color:var(--accent);">Job<span style="color:var(--text);">Feed</span></h1>
+      <p style="color:var(--text-muted);margin-top:0.5rem;">Invite-only — ask for a code to join</p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Create Account</span>
+        <a href="/login" style="font-size:0.85rem;color:var(--accent);text-decoration:none;">← Sign in</a>
+      </div>
+
+      {% if error %}
+      <div class="alert alert-error">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" action="/register">
+        <div class="form-group">
+          <label class="form-label" for="display_name">Name</label>
+          <input id="display_name" name="display_name" type="text" class="form-input"
+                 placeholder="Your name" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="email">Email</label>
+          <input id="email" name="email" type="email" class="form-input"
+                 placeholder="you@example.com" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input id="password" name="password" type="password" class="form-input"
+                 placeholder="••••••••" required minlength="8" />
+          <p class="form-hint">At least 8 characters</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="invite_code">Invite Code</label>
+          <input id="invite_code" name="invite_code" type="text" class="form-input"
+                 placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn-primary w-full" style="justify-content:center;">
+          Create Account
+        </button>
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

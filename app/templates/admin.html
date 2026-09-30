@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Admin — JobFeed{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <div class="page-header">
+    <h1>Admin Panel</h1>
+    <p class="text-muted">Manage companies and view fetch run history</p>
+  </div>
+
+  {% if msg %}
+  <div class="alert alert-success">{{ msg }}</div>
+  {% endif %}
+  {% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+  {% endif %}
+
+  <!-- Import companies -->
+  <div class="card mb-2">
+    <div class="card-header">
+      <span class="card-title">Import Companies</span>
+    </div>
+    <p class="text-muted mb-1" style="font-size:0.875rem;">
+      Paste JSON or CSV. JSON format: <code>[{"name":"Acme","ats":"greenhouse","token":"acme"}]</code><br/>
+      CSV format: <code>name,ats,token</code> (first line = header)
+    </p>
+    <form method="post" action="/admin/companies/import">
+      <div class="form-group">
+        <label class="form-label" for="import_data">JSON or CSV data</label>
+        <textarea id="import_data" name="import_data" class="form-textarea"
+                  style="min-height:120px;font-family:monospace;font-size:0.82rem;"
+                  placeholder='[{"name":"Acme Corp","ats":"greenhouse","token":"acme"}]'></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Import</button>
+    </form>
+  </div>
+
+  <!-- Companies table -->
+  <div class="card mb-2" style="padding:0;">
+    <div class="card-header" style="padding:1rem 1.25rem;">
+      <span class="card-title">Companies ({{ companies|length }})</span>
+      <div class="flex gap-1">
+        <button class="btn btn-secondary btn-sm"
+                hx-post="/api/refresh"
+                hx-target="#admin-refresh-status"
+                hx-swap="innerHTML">
+          ⟳ Refresh All Now
+        </button>
+      </div>
+    </div>
+    <div id="admin-refresh-status" style="padding:0 1.25rem;min-height:1rem;"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>ATS</th>
+            <th>Token</th>
+            <th>Active</th>
+            <th>Failures</th>
+            <th>Last Fetched</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in companies %}
+          <tr>
+            <td><strong>{{ c.name }}</strong></td>
+            <td><span class="badge badge-ats">{{ c.ats }}</span></td>
+            <td><code style="font-size:0.8rem;color:var(--text-muted);">{{ c.token }}</code></td>
+            <td>
+              {% if c.active %}
+                <span class="badge badge-applied">Active</span>
+              {% else %}
+                <span class="badge badge-skipped">Inactive</span>
+              {% endif %}
+            </td>
+            <td style="color:{% if c.consecutive_failures > 2 %}var(--accent){% else %}var(--text-muted){% endif %}">
+              {{ c.consecutive_failures }}
+            </td>
+            <td class="text-muted" style="font-size:0.82rem;">
+              {{ c.last_fetched_at.strftime('%Y-%m-%d %H:%M') if c.last_fetched_at else 'Never' }}
+            </td>
+            <td>
+              <div class="flex gap-1">
+                <form method="post" action="/admin/companies/{{ c.id }}/toggle">
+                  <button class="btn btn-ghost btn-sm">
+                    {% if c.active %}Deactivate{% else %}Activate{% endif %}
+                  </button>
+                </form>
+                <form method="post" action="/admin/companies/{{ c.id }}/delete"
+                      onsubmit="return confirm('Delete {{ c.name }}?')">
+                  <button class="btn btn-danger btn-sm">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Fetch runs log -->
+  <div class="card" style="padding:0;">
+    <div class="card-header" style="padding:1rem 1.25rem;">
+      <span class="card-title">Recent Fetch Runs</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Started</th>
+            <th>Duration</th>
+            <th>Triggered By</th>
+            <th>OK / Failed</th>
+            <th>Fetched</th>
+            <th>New</th>
+            <th>Errors</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for run in fetch_runs %}
+          <tr>
+            <td class="text-muted">{{ run.id }}</td>
+            <td style="font-size:0.82rem;">{{ run.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="text-muted" style="font-size:0.82rem;">
+              {% if run.finished_at %}
+                {{ ((run.finished_at - run.started_at).total_seconds() | int) }}s
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td><span class="badge badge-ats">{{ run.triggered_by }}</span></td>
+            <td>
+              <span style="color:var(--success);">{{ run.companies_ok }}</span>
+              /
+              <span style="color:{% if run.companies_failed > 0 %}var(--accent){% else %}var(--text-muted){% endif %}">{{ run.companies_failed }}</span>
+            </td>
+            <td>{{ run.jobs_fetched }}</td>
+            <td style="color:var(--success);">{{ run.jobs_new }}</td>
+            <td>
+              {% if run.error_summary %}
+              <details style="font-size:0.78rem;">
+                <summary style="cursor:pointer;color:var(--accent);">{{ run.companies_failed }} error(s)</summary>
+                <pre style="margin-top:0.5rem;padding:0.5rem;background:var(--bg);border-radius:4px;white-space:pre-wrap;font-size:0.75rem;color:var(--text-muted);">{{ run.error_summary }}</pre>
+              </details>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not fetch_runs %}
+          <tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem;">No fetch runs yet. Click Refresh All Now.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

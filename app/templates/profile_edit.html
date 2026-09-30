@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}{% if profile %}Edit{% else %}New{% endif %} Profile — JobFeed{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:760px;">
+
+  <div class="page-header">
+    <h1>{% if profile %}Edit Profile{% else %}New Profile{% endif %}</h1>
+    <p class="text-muted">Configure what jobs you want to see</p>
+  </div>
+
+  {% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="{{ '/profiles/' + profile.id|string + '/edit' if profile else '/profiles/new' }}">
+
+    <!-- Basic -->
+    <div class="card mb-2">
+      <div class="card-header"><span class="card-title">Basics</span></div>
+      <div class="form-group">
+        <label class="form-label" for="name">Profile Name</label>
+        <input id="name" name="name" type="text" class="form-input"
+               value="{{ profile.name if profile else 'My Profile' }}" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="target_titles">Target Job Titles</label>
+        <input id="target_titles" name="target_titles" type="text" class="form-input"
+               value="{{ profile.target_titles | join(', ') if profile else 'Software Engineer, Backend Engineer, Full Stack Engineer' }}" />
+        <p class="form-hint">Comma-separated. Any job whose title contains one of these will be considered.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Seniority Levels to Include</label>
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" name="include_mid" value="1"
+                   {% if not profile or profile.include_mid %}checked{% endif %} />
+            Mid-level
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="include_senior" value="1"
+                   {% if not profile or profile.include_senior %}checked{% endif %} />
+            Senior
+          </label>
+        </div>
+        <p class="form-hint">Intern, junior, entry-level, staff, principal, director, manager, VP are always excluded.</p>
+      </div>
+    </div>
+
+    <!-- Keywords -->
+    <div class="card mb-2">
+      <div class="card-header"><span class="card-title">Keywords</span></div>
+      <div class="form-group">
+        <label class="form-label" for="must_have_keywords">Must-Have Keywords</label>
+        <input id="must_have_keywords" name="must_have_keywords" type="text" class="form-input"
+               value="{{ profile.must_have_keywords | join(', ') if profile else '' }}"
+               placeholder="e.g. Python, Django, PostgreSQL" />
+        <p class="form-hint">All of these must appear somewhere in the job posting.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="nice_to_have_keywords">Nice-to-Have Keywords</label>
+        <input id="nice_to_have_keywords" name="nice_to_have_keywords" type="text" class="form-input"
+               value="{{ profile.nice_to_have_keywords | join(', ') if profile else '' }}"
+               placeholder="e.g. FastAPI, Redis, Kubernetes" />
+        <p class="form-hint">Boost the score when present, but not required.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="exclude_keywords">Exclude Keywords</label>
+        <input id="exclude_keywords" name="exclude_keywords" type="text" class="form-input"
+               value="{{ profile.exclude_keywords | join(', ') if profile else '' }}"
+               placeholder="e.g. gaming, defense, blockchain" />
+        <p class="form-hint">Jobs containing any of these are filtered out.</p>
+      </div>
+    </div>
+
+    <!-- Location -->
+    <div class="card mb-2">
+      <div class="card-header"><span class="card-title">Location</span></div>
+      <div class="form-group">
+        <label class="form-label">Location Mode</label>
+        <div class="checkbox-group" style="flex-direction:column;align-items:flex-start;gap:0.5rem;">
+          {% set lm = profile.location_mode if profile else 'both' %}
+          <label class="checkbox-label">
+            <input type="radio" name="location_mode" value="remote_us" {% if lm == 'remote_us' %}checked{% endif %} />
+            Remote — US only
+          </label>
+          <label class="checkbox-label">
+            <input type="radio" name="location_mode" value="onsite" {% if lm == 'onsite' %}checked{% endif %} />
+            Onsite / Hybrid in chosen area only
+          </label>
+          <label class="checkbox-label">
+            <input type="radio" name="location_mode" value="both" {% if lm == 'both' %}checked{% endif %} />
+            Both (remote US <strong>or</strong> onsite in area)
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="onsite_area">Onsite Area (city/region keywords)</label>
+        <input id="onsite_area" name="onsite_area" type="text" class="form-input"
+               value="{{ profile.onsite_area if profile else 'Minneapolis, St. Paul, Lakeville, Bloomington, Eden Prairie, Minnesota' }}" />
+        <p class="form-hint">Comma-separated. If a job's location contains any of these, it's considered onsite-local.</p>
+      </div>
+    </div>
+
+    <!-- Work auth -->
+    <div class="card mb-2">
+      <div class="card-header"><span class="card-title">Work Authorization</span></div>
+      <div class="form-group">
+        <div class="checkbox-group" style="flex-direction:column;align-items:flex-start;gap:0.75rem;">
+          <label class="checkbox-label">
+            <input type="checkbox" name="exclude_no_sponsorship" value="1"
+                   {% if not profile or profile.exclude_no_sponsorship %}checked{% endif %} />
+            Exclude jobs that explicitly state they <strong>cannot sponsor visas</strong>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="exclude_clearance_required" value="1"
+                   {% if not profile or profile.exclude_clearance_required %}checked{% endif %} />
+            Exclude jobs requiring <strong>security clearance</strong> or US citizenship
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Limits -->
+    <div class="card mb-2">
+      <div class="card-header"><span class="card-title">Limits</span></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="max_age_hours">Max Job Age (hours)</label>
+          <input id="max_age_hours" name="max_age_hours" type="number" min="1" max="720"
+                 class="form-input"
+                 value="{{ profile.max_age_hours if profile else 30 }}" />
+          <p class="form-hint">Jobs older than this are filtered out. Default: 30h.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="daily_target">Daily Target (max jobs shown)</label>
+          <input id="daily_target" name="daily_target" type="number" min="1" max="500"
+                 class="form-input"
+                 value="{{ profile.daily_target if profile else 100 }}" />
+          <p class="form-hint">Top N jobs per day. Default: 100.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex gap-1">
+      <button type="submit" class="btn btn-primary">Save Profile</button>
+      <a href="/profiles" class="btn btn-ghost">Cancel</a>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

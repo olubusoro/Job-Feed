@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Search Profiles — JobFeed{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <div class="page-header flex items-center justify-between">
+    <div>
+      <h1>Search Profiles</h1>
+      <p class="text-muted">Configure what jobs JobFeed shows you each day</p>
+    </div>
+    <a href="/profiles/new" class="btn btn-primary">+ New Profile</a>
+  </div>
+
+  {% if profiles %}
+  <div style="display:grid;gap:1rem;">
+    {% for p in profiles %}
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <span class="card-title">{{ p.name }}</span>
+          {% if not p.active %}<span class="badge badge-skipped" style="margin-left:8px;">Inactive</span>{% endif %}
+        </div>
+        <div class="flex gap-1">
+          <a href="/profiles/{{ p.id }}/edit" class="btn btn-ghost btn-sm">Edit</a>
+          <form method="post" action="/profiles/{{ p.id }}/delete"
+                onsubmit="return confirm('Delete this profile?')">
+            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+          </form>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;font-size:0.875rem;">
+        <div>
+          <div class="text-muted" style="font-size:0.75rem;margin-bottom:0.2rem;">TITLES</div>
+          {{ p.target_titles | join(', ') or '—' }}
+        </div>
+        <div>
+          <div class="text-muted" style="font-size:0.75rem;margin-bottom:0.2rem;">LOCATION</div>
+          {{ p.location_mode }} &mdash; {{ p.onsite_area or '—' }}
+        </div>
+        <div>
+          <div class="text-muted" style="font-size:0.75rem;margin-bottom:0.2rem;">MUST HAVE</div>
+          {{ p.must_have_keywords | join(', ') or '—' }}
+        </div>
+        <div>
+          <div class="text-muted" style="font-size:0.75rem;margin-bottom:0.2rem;">NICE TO HAVE</div>
+          {{ p.nice_to_have_keywords | join(', ') or '—' }}
+        </div>
+        <div>
+          <div class="text-muted" style="font-size:0.75rem;margin-bottom:0.2rem;">EXCLUDE</div>
+          {{ p.exclude_keywords | join(', ') or '—' }}
+        </div>
+        <div>
+          <div class="text-muted" style="font-size:0.75rem;margin-bottom:0.2rem;">MAX AGE / TARGET</div>
+          {{ p.max_age_hours }}h / {{ p.daily_target }} jobs
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card" style="text-align:center;padding:3rem;">
+    <p style="font-size:1.1rem;margin-bottom:0.5rem;">No profiles yet</p>
+    <p class="text-muted mb-2">Create a search profile to start seeing matching jobs.</p>
+    <a href="/profiles/new" class="btn btn-primary">Create Profile</a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
