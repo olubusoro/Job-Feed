@@ -77,28 +77,11 @@
     <div class="card mb-2">
       <div class="card-header"><span class="card-title">Location</span></div>
       <div class="form-group">
-        <label class="form-label">Location Mode</label>
-        <div class="checkbox-group" style="flex-direction:column;align-items:flex-start;gap:0.5rem;">
-          {% set lm = profile.location_mode if profile else 'both' %}
-          <label class="checkbox-label">
-            <input type="radio" name="location_mode" value="remote_us" {% if lm == 'remote_us' %}checked{% endif %} />
-            Remote — US only
-          </label>
-          <label class="checkbox-label">
-            <input type="radio" name="location_mode" value="onsite" {% if lm == 'onsite' %}checked{% endif %} />
-            Onsite / Hybrid in chosen area only
-          </label>
-          <label class="checkbox-label">
-            <input type="radio" name="location_mode" value="both" {% if lm == 'both' %}checked{% endif %} />
-            Both (remote US <strong>or</strong> onsite in area)
-          </label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="onsite_area">Onsite Area (city/region keywords)</label>
-        <input id="onsite_area" name="onsite_area" type="text" class="form-input"
-               value="{{ profile.onsite_area if profile else 'Minneapolis, St. Paul, Lakeville, Bloomington, Eden Prairie, Minnesota' }}" />
-        <p class="form-hint">Comma-separated. If a job's location contains any of these, it's considered onsite-local.</p>
+        <p class="form-hint" style="color:var(--text-color);">
+          <strong>Note:</strong> JobFeed is now globally configured to only show 
+          fully remote jobs that are open to candidates based in Europe (including UK, EEA). 
+          Onsite and hybrid jobs, or remote jobs restricted to non-European regions, are automatically filtered out.
+        </p>
       </div>
     </div>
 

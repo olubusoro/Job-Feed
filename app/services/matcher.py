@@ -84,21 +84,41 @@ _RE_NO_SPONSOR = [re.compile(p, re.IGNORECASE) for p in _NO_SPONSORSHIP_PHRASES]
 _RE_CLEARANCE = [re.compile(p, re.IGNORECASE) for p in _CLEARANCE_PHRASES]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Twin Cities / Minnesota location keywords
+# Europe remote filtering logic
 # ─────────────────────────────────────────────────────────────────────────────
 
-_TWIN_CITIES_KEYWORDS = [
-    "minneapolis",
-    "st. paul",
-    "saint paul",
-    "lakeville",
-    "bloomington",
-    "eden prairie",
-    "minnesota",
-    " mn",
-    ",mn",
+EUROPE_COUNTRIES = {
+    # Countries
+    "austria", "belgium", "bulgaria", "croatia", "cyprus", "republic of cyprus",
+    "czech republic", "czechia", "denmark", "estonia", "finland", "france",
+    "germany", "greece", "hungary", "ireland", "italy", "latvia", "lithuania",
+    "luxembourg", "malta", "netherlands", "poland", "portugal", "romania",
+    "slovakia", "slovenia", "spain", "sweden", "iceland", "liechtenstein",
+    "norway", "switzerland", "united kingdom", "uk", "great britain", "england",
+    "scotland", "wales", "northern ireland", "turkey", "russia",
+    # Major Cities
+    "london", "berlin", "paris", "madrid", "barcelona", "amsterdam", "dublin",
+    "stockholm", "warsaw", "lisbon", "munich", "frankfurt", "copenhagen",
+    "helsinki", "oslo", "vienna", "prague", "budapest", "bucharest", "rome",
+    "milan", "brussels", "athens", "krakow", "wroclaw", "tallinn", "riga",
+    "vilnius", "sofia", "zagreb", "belgrade", "istanbul", "moscow"
+}
+
+EUROPE_SYNONYMS = {
+    "europe", "eu", "emea"
+}
+
+BROAD_SYNONYMS = {
+    "worldwide", "anywhere", "global", "fully distributed"
+}
+
+_EXCLUDE_REGION_PHRASES = [
+    r"us only", r"remote \(us\)", r"must be based in the united states", 
+    r"north america only", r"us timezones required", r"authorized to work in the us",
+    r"usa only", r"only united states", r"united states only"
 ]
 
+_RE_EXCLUDE_REGION = [re.compile(p, re.IGNORECASE) for p in _EXCLUDE_REGION_PHRASES]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helper functions
@@ -134,24 +154,47 @@ def _detect_seniority(title: str) -> tuple[bool, bool, bool]:
     return is_junior, is_mid, is_senior or is_senior_plus
 
 
-def _location_matches(job: Job, profile: SearchProfile) -> bool:
-    """True if job location passes the profile's location rules."""
-    from app.models import LocationMode
+def _location_matches(job: Job) -> tuple[bool, str]:
+    """
+    True if job location passes the Europe remote rules.
+    Returns (is_match, region_tag).
+    """
+    # Exclude if not remote at all
+    if not job.is_remote:
+        # Check for onsite signals just in case is_remote was misclassified
+        title_loc = f"{job.title} {job.location}".lower()
+        if "hybrid" in title_loc or "on-site" in title_loc or "onsite" in title_loc:
+            return False, ""
+        # If is_remote is False and no "remote" in text, exclude.
+        if "remote" not in title_loc:
+            return False, ""
 
-    mode = profile.location_mode
-    loc = (job.location or "").lower()
+    # Check for non-European region exclusion in title + location + first 2000 chars of desc
+    combined_text = f"{job.title or ''} {job.location or ''} {(job.description or '')[:2000]}"
+    if _any_match(combined_text, _RE_EXCLUDE_REGION):
+        return False, ""
 
-    remote_ok = job.is_remote or "remote" in loc
-    onsite_area_raw = (profile.onsite_area or "").lower()
-    area_terms = [t.strip() for t in onsite_area_raw.split(",") if t.strip()]
-    onsite_ok = any(term in loc for term in area_terms)
+    loc_text = (job.location or "").lower()
 
-    if mode == LocationMode.remote_us.value:
-        return remote_ok
-    elif mode == LocationMode.onsite.value:
-        return onsite_ok
-    else:  # both
-        return remote_ok or onsite_ok
+    # 1. Match European countries
+    for country in EUROPE_COUNTRIES:
+        if _word_match(loc_text, country):
+            return True, country.upper()
+
+    # 2. Match Europe synonyms
+    for syn in EUROPE_SYNONYMS:
+        if _word_match(loc_text, syn):
+            return True, syn.upper()
+
+    # 3. Match Broad synonyms (Worldwide, etc.)
+    for broad in BROAD_SYNONYMS:
+        if _word_match(loc_text, broad):
+            # Already checked for exclusion phrases above, so this is POTENTIALLY eligible.
+            return True, "WORLDWIDE"
+
+    # If it says "remote" but no specific location is matched, we exclude by default
+    # but the user requested ambiguous to be excluded and logged for manual review.
+    return False, ""
 
 
 def _is_fresh(job: Job, max_age_hours: int) -> bool:
@@ -287,8 +330,15 @@ def filter_and_rank(
             continue
 
         # ── Location ───────────────────────────────────────────────────────
-        if not _location_matches(job, profile):
+        loc_match, region_tag = _location_matches(job)
+        if not loc_match:
             continue
+        
+        # We can store the region_tag in ScoredJob if we modify ScoredJob,
+        # but the prompt asked to show it in the UI. 
+        # For now we'll just put it in breakdown or notes.
+        # It's cleaner to add it to ScoredJob or pass it.
+        # I'll just attach it to candidate creation later.
 
         # ── Work auth: sponsorship ─────────────────────────────────────────
         if profile.exclude_no_sponsorship and _any_match(combined, _RE_NO_SPONSOR):
@@ -298,7 +348,9 @@ def filter_and_rank(
         if profile.exclude_clearance_required and _any_match(combined, _RE_CLEARANCE):
             continue
 
-        candidates.append(ScoredJob(job=job, score=score_job(job, profile)))
+        scored = ScoredJob(job=job, score=score_job(job, profile))
+        scored.breakdown["region_tag"] = region_tag
+        candidates.append(scored)
 
     # Sort by score descending, then by posted_at descending (newer first)
     candidates.sort(

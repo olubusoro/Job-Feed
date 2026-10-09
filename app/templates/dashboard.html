@@ -133,6 +133,9 @@
               {% if uj.job.is_remote %}
               <span class="badge badge-remote" style="margin-left:4px;">Remote</span>
               {% endif %}
+              {% if uj.job.region_tag %}
+              <span class="badge" style="margin-left:4px; background-color: var(--primary); color: white;">{{ uj.job.region_tag }}</span>
+              {% endif %}
             </td>
             <td class="text-muted" style="white-space:nowrap;">
               {{ uj.job.posted_at | timeago if uj.job.posted_at else uj.job.first_seen_at | timeago }}

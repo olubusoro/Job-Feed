@@ -38,12 +38,6 @@ class ATSType(str, enum.Enum):
     recruitee = "recruitee"
 
 
-class LocationMode(str, enum.Enum):
-    remote_us = "remote_us"
-    onsite = "onsite"
-    both = "both"
-
-
 class JobStatus(str, enum.Enum):
     new = "New"
     applied = "Applied"
@@ -97,15 +91,6 @@ class SearchProfile(Base):
     must_have_keywords: Mapped[list] = mapped_column(JSON, default=list)
     nice_to_have_keywords: Mapped[list] = mapped_column(JSON, default=list)
     exclude_keywords: Mapped[list] = mapped_column(JSON, default=list)
-
-    # Location
-    location_mode: Mapped[str] = mapped_column(
-        String(20), default=LocationMode.both.value
-    )
-    onsite_area: Mapped[str] = mapped_column(
-        String(255),
-        default="Minneapolis, St. Paul, Lakeville, Bloomington, Eden Prairie, Minnesota",
-    )
 
     # Work auth
     exclude_no_sponsorship: Mapped[bool] = mapped_column(Boolean, default=True)

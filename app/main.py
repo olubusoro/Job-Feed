@@ -33,7 +33,6 @@ from app.models import (
     FetchRun,
     Job,
     JobStatus,
-    LocationMode,
     SearchProfile,
     User,
     UserJob,
@@ -186,8 +185,6 @@ def register(
         must_have_keywords=[],
         nice_to_have_keywords=[],
         exclude_keywords=[],
-        location_mode=LocationMode.both.value,
-        onsite_area="Minneapolis, St. Paul, Lakeville, Bloomington, Eden Prairie, Minnesota",
         exclude_no_sponsorship=True,
         exclude_clearance_required=True,
         max_age_hours=30,
@@ -321,6 +318,11 @@ def dashboard(
     if ats:
         user_jobs = [uj for uj in user_jobs if uj.job.ats == ats]
 
+    from app.services.matcher import _location_matches
+    for uj in user_jobs:
+        _, region = _location_matches(uj.job)
+        uj.job.region_tag = region
+
     # Stats
     now = datetime.utcnow()
     today_cutoff = now - timedelta(hours=24)
@@ -428,8 +430,6 @@ def create_profile(
         must_have_keywords=_parse_keywords(must_have_keywords),
         nice_to_have_keywords=_parse_keywords(nice_to_have_keywords),
         exclude_keywords=_parse_keywords(exclude_keywords),
-        location_mode=location_mode,
-        onsite_area=onsite_area,
         exclude_no_sponsorship=exclude_no_sponsorship == "1",
         exclude_clearance_required=exclude_clearance_required == "1",
         max_age_hours=max(1, min(720, max_age_hours)),
@@ -487,8 +487,6 @@ def update_profile(
     profile.must_have_keywords = _parse_keywords(must_have_keywords)
     profile.nice_to_have_keywords = _parse_keywords(nice_to_have_keywords)
     profile.exclude_keywords = _parse_keywords(exclude_keywords)
-    profile.location_mode = location_mode
-    profile.onsite_area = onsite_area
     profile.exclude_no_sponsorship = exclude_no_sponsorship == "1"
     profile.exclude_clearance_required = exclude_clearance_required == "1"
     profile.max_age_hours = max(1, min(720, max_age_hours))
